@@ -13,6 +13,9 @@
 package jvn;
 
 import java.io.Serializable;
+import java.util.concurrent.locks.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -22,6 +25,8 @@ public class JvnObjectImpl implements JvnObject {
     private int id;
     private LockState lockState;
     private Serializable object;
+    private final Lock lockOnState = new ReentrantLock();
+    private final Condition lockCondition = lockOnState.newCondition();
     
     public JvnObjectImpl(int id, Serializable o, JvnLocalServer jvnRemoteServer) {
         super();
@@ -70,26 +75,30 @@ public class JvnObjectImpl implements JvnObject {
     }
 
     @Override
-    public synchronized void jvnUnLock() throws JvnException {
-        switch (lockState) {
-            case W: 
-            case WC :
-            case RWC :
-                this.lockState = LockState.WC;
-                break;
-            case R :  
-            case RC : 
-                this.lockState = LockState.RC;
-                break;  
-            case NL : 
-                break;
+    public void jvnUnLock() throws JvnException {
+        lockOnState.lock();
+        try {
+            switch (lockState) {
+                case W: 
+                case WC :
+                case RWC :
+                    this.lockState = LockState.WC;
+                    break;
+                case R :  
+                case RC : 
+                    this.lockState = LockState.RC;
+                    break;  
+                case NL : 
+                    break;
+            }
+        } finally {
+            lockCondition.signalAll();
+            lockOnState.unlock();
         }
-        //notify to my threads waited for lock 
-        notifyAll();
     }
     
     @Override
-    public synchronized void jvnRemoveLock() throws JvnException {
+    public void jvnRemoveLock() throws JvnException {
         lockState = LockState.NL;
     }
 
@@ -118,76 +127,82 @@ public class JvnObjectImpl implements JvnObject {
     }
 
     @Override
-    public synchronized void jvnInvalidateReader() throws JvnException {
-        switch (lockState) {
-            case W: 
-            case WC :
-            case RWC :
-                throw new JvnException("JvnError : No read lock can be "
-                        + "free while having Write lock");
-            case R :    
-                try {
-                    wait();
-                } catch (InterruptedException ie) {
-                    throw new JvnException("JvnError : waiting for unlock never happend !");
-                }
-                lockState = LockState.NL;
-                break;
-            case RC :  
-            case NL :
-                lockState = LockState.NL;
-                break;
+    public void jvnInvalidateReader() throws JvnException {
+        lockOnState.lock();
+        try {
+            switch(lockState) {
+                case W: 
+                case WC :
+                case RWC :
+                    throw new JvnException("JvnError : No read lock can be "
+                            + "free while having Write lock");
+                case R :    
+                    lockCondition.await();
+                    lockState = LockState.NL;
+                    break;
+                case RC :  
+                case NL :
+                    lockState = LockState.NL;
+                    break;
+            }
+        } catch (InterruptedException ex) {
+            Logger.getLogger(JvnObjectImpl.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            lockOnState.unlock();
         }
-        notifyAll();
     }
 
     @Override
-    public synchronized Serializable jvnInvalidateWriter() throws JvnException {
-        switch (lockState) {
-            case R : 
-            case RWC :
-            case W: 
-                try {
-                    wait();
-                } catch (InterruptedException ie) {
-                    throw new JvnException("JvnError : waiting for unlock never happend !");}
-                lockState = LockState.NL;
-                break;
-            case RC :  
-            case NL :
-            case WC :
-                lockState = LockState.NL;
-                break;
+    public  Serializable jvnInvalidateWriter() throws JvnException {
+        lockOnState.lock();
+        try {
+            switch (lockState) {
+                case R : 
+                case RWC :
+                case W: 
+                    lockCondition.await();
+                    lockState = LockState.NL;
+                    break;
+                case RC :  
+                case NL :
+                case WC :
+                    lockState = LockState.NL;
+                    break;
+            }
+        } catch (InterruptedException ex) {
+            Logger.getLogger(JvnObjectImpl.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            lockOnState.unlock();
         }
-        //notify to my threads waited for lock 
-        notifyAll();
         return this.object;
     }
 
     @Override
-    public synchronized Serializable jvnInvalidateWriterForReader() 
+    public Serializable jvnInvalidateWriterForReader() 
             throws JvnException {
-        switch (lockState) {
-            case RWC :
-            case R :  
-                lockState = LockState.R;
-                break;
-            case W: 
-                try {
-                    wait();
-                } catch (InterruptedException ie) {
-                    throw new JvnException("JvnError : waiting for unlock never happend !");}
-                lockState = LockState.RC;
-                break;
-            case RC :  
-                break;
-            case NL :
-            case WC :
-                lockState = LockState.NL;
-                break;
+        lockOnState.lock();
+        try {
+            switch (lockState) {
+                case RWC :
+                case R :  
+                    lockState = LockState.R;
+                    break;
+                case W: 
+                    lockCondition.await();
+                    lockState = LockState.RC;
+                    break;
+                case RC :  
+                    break;
+                case NL :
+                case WC :
+                    lockState = LockState.NL;
+                    break;
+            }
+        } catch (InterruptedException ex) {
+            Logger.getLogger(JvnObjectImpl.class.getName()).log(Level.SEVERE, null, ex);
+        } finally {
+            lockOnState.unlock();
         }
-        //notify to my threads waited for lock 
-        notifyAll();
         return this.object;
     }
        

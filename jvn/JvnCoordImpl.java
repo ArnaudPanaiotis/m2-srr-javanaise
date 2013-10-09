@@ -19,6 +19,8 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 
 public class JvnCoordImpl 	
@@ -29,8 +31,10 @@ public class JvnCoordImpl
     private HashMap<String, Integer> symbolicNames;
     private HashMap<Integer, JvnRemoteServer> lockW;
     private HashMap<Integer, ArrayList<JvnRemoteServer>> lockR;
-    
-    
+        
+    private final Lock lockOnLockR = new ReentrantLock();
+    private final Lock lockOnLockW = new ReentrantLock();
+    private final Lock lockOnId = new ReentrantLock();
 
     /**
     * Default constructor
@@ -65,10 +69,17 @@ public class JvnCoordImpl
     * @throws java.rmi.RemoteException,JvnException
     **/
     @Override
-    synchronized public int jvnGetObjectId()
+    public int jvnGetObjectId()
             throws java.rmi.RemoteException,jvn.JvnException {
-        freeId++;
-        return freeId;
+        lockOnId.lock();
+        int tmp = -1;
+        try {
+            freeId++;
+            tmp = freeId;
+        } finally {
+            lockOnId.unlock();
+        }
+        return tmp;
     }
   
     /**
@@ -80,7 +91,7 @@ public class JvnCoordImpl
     * @throws java.rmi.RemoteException,JvnException
     **/
     @Override
-    synchronized public void jvnRegisterObject(String jon, JvnObject jo, JvnRemoteServer js)
+    public void jvnRegisterObject(String jon, JvnObject jo, JvnRemoteServer js)
         throws java.rmi.RemoteException,jvn.JvnException{
         if (symbolicNames.containsKey(jon)) {
             throw new JvnException("This symbolic name is already taken");
@@ -88,6 +99,7 @@ public class JvnCoordImpl
         objects.put(jo.jvnGetObjectId(), jo);
         symbolicNames.put(jon, jo.jvnGetObjectId());
         ArrayList<JvnRemoteServer> al;
+
         switch (jo.jvnGetLockStatus()) {
             case NL : 
                 break;
@@ -103,6 +115,7 @@ public class JvnCoordImpl
                 lockR.put(jo.jvnGetObjectId(), al);
             case WC :
             case W :
+                lockOnLockW.lock();
                 if (lockW.containsKey(jo.jvnGetObjectId())) {
                     //get the write lock which were on previous registred object
                     Serializable o = lockW.get(jo.jvnGetObjectId()).
@@ -111,6 +124,7 @@ public class JvnCoordImpl
                 } else {
                     lockW.put(jo.jvnGetObjectId(), js);
                 }
+                lockOnLockW.unlock();
                 break;
         } 
     }
@@ -122,7 +136,7 @@ public class JvnCoordImpl
     * @throws java.rmi.RemoteException,JvnException
     **/
     @Override
-    synchronized public JvnObject jvnLookupObject(String jon, JvnRemoteServer js)
+    public JvnObject jvnLookupObject(String jon, JvnRemoteServer js)
     throws java.rmi.RemoteException,jvn.JvnException{
         if (objects.get(symbolicNames.get(jon)) != null) {
             objects.get(symbolicNames.get(jon)).jvnRemoveLock();
@@ -138,19 +152,29 @@ public class JvnCoordImpl
   * @throws java.rmi.RemoteException, JvnException
   **/
   @Override
-  synchronized public Serializable jvnLockRead(int joi, JvnRemoteServer js)
+  public Serializable jvnLockRead(int joi, JvnRemoteServer js)
   throws java.rmi.RemoteException, JvnException{
     Serializable object = objects.get(joi).jvnGetObjectState();
       // if we have a writer, remove it
-      if (lockW.containsKey(joi)) {
-          object = lockW.get(joi).jvnInvalidateWriterForReader(joi);
-          objects.get(joi).jvnSetObjectState(object);
-          lockW.remove(joi);
-      }
+    lockOnLockW.lock();
+        try {
+            if (lockW.containsKey(joi)) {
+                object = lockW.get(joi).jvnInvalidateWriterForReader(joi);
+                objects.get(joi).jvnSetObjectState(object);
+                lockW.remove(joi);
+            }
+        } finally {
+            lockOnLockW.unlock();
+        }
       // update the Reads locks
-      if (! lockR.containsKey(joi)) {
-          lockR.put(joi, new ArrayList());
-      }
+      lockOnLockR.lock();
+        try {
+            if (! lockR.containsKey(joi)) {
+                lockR.put(joi, new ArrayList());
+            }
+        } finally {
+            lockOnLockR.unlock();
+        }
       lockR.get(joi).add(js);
       return object;
   }
@@ -163,21 +187,31 @@ public class JvnCoordImpl
   * @throws java.rmi.RemoteException, JvnException
   **/
     @Override
-    synchronized public Serializable jvnLockWrite(int joi, JvnRemoteServer js)
+    public Serializable jvnLockWrite(int joi, JvnRemoteServer js)
             throws java.rmi.RemoteException, JvnException{
         Serializable object = objects.get(joi).jvnGetObjectState();
         // if we have a writer, remove it
-        if (lockW.containsKey(joi)) {
-            object = lockW.get(joi).jvnInvalidateWriter(joi);
-            objects.get(joi).jvnSetObjectState(object);
-            lockW.remove(joi);
+        lockOnLockW.lock();
+        try {
+            if (lockW.containsKey(joi)) {
+                object = lockW.get(joi).jvnInvalidateWriter(joi);
+                objects.get(joi).jvnSetObjectState(object);
+                lockW.remove(joi);
+            }
+        } finally {
+            lockOnLockW.unlock();
         }
         // if we have readers, remove all of them
-        if (lockR.get(joi) != null){
-            for (JvnRemoteServer server : lockR.get(joi)){
-                server.jvnInvalidateReader(joi);
+        lockOnLockR.lock();
+        try {
+            if (lockR.get(joi) != null){
+                for (JvnRemoteServer server : lockR.get(joi)){
+                    server.jvnInvalidateReader(joi);
+                }
+                lockR.remove(joi);
             }
-            lockR.remove(joi);
+        } finally {
+            lockOnLockR.unlock();
         }
         // update lock
         lockW.put(joi, js);
