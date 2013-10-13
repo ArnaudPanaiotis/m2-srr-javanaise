@@ -198,23 +198,25 @@ public class JvnCoordImpl
                 objects.get(joi).jvnSetObjectState(object);
                 lockW.remove(joi);
             }
+            // if we have readers, remove all of them
+            lockOnLockR.lock();
+            try {
+                if (lockR.get(joi) != null){
+                    for (JvnRemoteServer server : lockR.get(joi)){
+                        if (server != js) {
+                            server.jvnInvalidateReader(joi);
+                        }
+                    }
+                    lockR.remove(joi);
+                }
+            } finally {
+                lockOnLockR.unlock();
+            }
+            // update lock
+            lockW.put(joi, js);
         } finally {
             lockOnLockW.unlock();
         }
-        // if we have readers, remove all of them
-        lockOnLockR.lock();
-        try {
-            if (lockR.get(joi) != null){
-                for (JvnRemoteServer server : lockR.get(joi)){
-                    server.jvnInvalidateReader(joi);
-                }
-                lockR.remove(joi);
-            }
-        } finally {
-            lockOnLockR.unlock();
-        }
-        // update lock
-        lockW.put(joi, js);
         return object;
     }
     

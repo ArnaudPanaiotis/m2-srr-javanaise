@@ -37,8 +37,8 @@ public class JvnObjectImpl implements JvnObject {
     
     @Override
     public void jvnLockRead() throws JvnException {
-        lockOnState.lock();
-        try {
+//        lockOnState.lock();
+//        try {
             switch (lockState) {
                 case W: 
                     throw new JvnException("JvnError : Writer can not ask for Read lock");
@@ -57,15 +57,15 @@ public class JvnObjectImpl implements JvnObject {
                     this.lockState = LockState.RWC;
                     break;
             }
-        } finally {
-            lockOnState.unlock();
-        }
+//        } finally {
+//            lockOnState.unlock();
+//        }
     }
 
     @Override
     public void jvnLockWrite() throws JvnException {
-        lockOnState.lock();
-        try {
+//        lockOnState.lock();
+//        try {
             switch (lockState) {
                 case W:  
                 case WC :
@@ -81,9 +81,9 @@ public class JvnObjectImpl implements JvnObject {
                     this.lockState = LockState.W;
                     break;
             }
-        } finally {
-            lockOnState.unlock();
-        }
+//        } finally {
+//            lockOnState.unlock();
+//        }
     }
 
     @Override

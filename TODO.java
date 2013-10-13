@@ -13,8 +13,8 @@ public class TODO {
      * TEST :
      * 
      * 
-     * Mode burst
-     * Unlock
+     *   Mode burst
+     * X Unlock
      * 
      * 
      * EXTENSIONS :
