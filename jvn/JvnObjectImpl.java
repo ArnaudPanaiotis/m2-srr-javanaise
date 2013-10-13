@@ -37,40 +37,52 @@ public class JvnObjectImpl implements JvnObject {
     
     @Override
     public void jvnLockRead() throws JvnException {
-        switch (lockState) {
-            case W: 
-                throw new JvnException("JvnError : Writer can not ask for Read lock");
-            case NL : 
-                object = JvnServerImpl.jvnGetServer().jvnLockRead(this.id);
-                this.lockState = LockState.R;
-                break;
-            case RC : 
-            case R :
-                //I have the lock in read
-                this.lockState = LockState.R;
-                break;
-            case WC :
-            case RWC :
-                //I have the lock in read (and in write)
-                this.lockState = LockState.RWC;
-                break;
+        lockOnState.lock();
+        try {
+            switch (lockState) {
+                case W: 
+                    throw new JvnException("JvnError : Writer can not ask for Read lock");
+                case NL : 
+                    object = JvnServerImpl.jvnGetServer().jvnLockRead(this.id);
+                    this.lockState = LockState.R;
+                    break;
+                case RC : 
+                case R :
+                    //I have the lock in read
+                    this.lockState = LockState.R;
+                    break;
+                case WC :
+                case RWC :
+                    //I have the lock in read (and in write)
+                    this.lockState = LockState.RWC;
+                    break;
+            }
+        } finally {
+            lockOnState.unlock();
         }
     }
 
     @Override
     public void jvnLockWrite() throws JvnException {
-        switch (lockState) {
-            case W:  
-            case WC :
-            case RWC :
-                //I have the lock in write
-                this.lockState = LockState.W;
-                break;
-            case R :  
-            case RC : 
-            case NL :  
-                object = JvnServerImpl.jvnGetServer().jvnLockWrite(this.id);
-                break;
+        lockOnState.lock();
+        try {
+            switch (lockState) {
+                case W:  
+                case WC :
+                case RWC :
+                    //I have the lock in write
+                    this.lockState = LockState.W;
+                    break;
+                case R :  
+                    throw new JvnException("JvnError : Reader can not ask for Write lock");
+                case RC : 
+                case NL :  
+                    object = JvnServerImpl.jvnGetServer().jvnLockWrite(this.id);
+                    this.lockState = LockState.W;
+                    break;
+            }
+        } finally {
+            lockOnState.unlock();
         }
     }
 
