@@ -1,8 +1,13 @@
 /***
  * JAVANAISE API
- * Contact: 
+ * JvnLocalServer interface
+ * Contacts: 
+ *  nicolas.bouscarle@centraliens-lille.org
+ *  arnaud.panaiotis@e.ujf-grenoble.fr
  *
  * Authors: 
+ *  Bouscarle Nicolas
+ *  Panaiotis Arnaud
  */
 
 package jvn;

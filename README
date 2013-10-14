@@ -1,0 +1,55 @@
+/*
+ * @authors :
+ * Bouscarle Nicolas
+ * Panaiotis Arnaud
+ * 
+ * Project Javanaise
+ *
+ * Last modification date : 14 october 2013
+ *
+ */
+This Readme file contains information on structural organisation of the 
+project and on how to run the tests.
+
+
+FILES' DESCRIPTION
+
+Package irc: 
+    Irc.java
+    Sentence.java
+
+    Original class for the basic tests.
+
+
+Package jvn: 
+    JvnCoordImpl.java
+    JvnRemoteCoord.java
+        Implementation and Interface of the coordinator.
+    JvnServerImpl.java
+    JvnRemoteServer.java
+    JvnLocalServer.java
+        Implementation and Interfaces of the local server, used by the client
+        to communicate with the coordinator.
+    JvnObject.java
+    JvnObjectImpl.java
+        Implementation and Interface of the shared object. 
+    JvnException.java
+        Specific error thrown by the library.
+
+
+Package tst:
+    Irc_Burst.java
+    Irc_Unlock.java
+
+    Contains tests for library.
+    Burst test makes read and write as random, keeping locks a random time.
+    Unlock test is a graphical chat with manual unlock.
+
+
+
+RUNNING THE TESTS
+
+For any of the tests, begin by running jvn.JvnCoordImpl.
+Wait for output "Coordinator Ready!".
+
+Then run any of irc.Irc, tst.Irc_Burst or Irc_Unlock as many time as desired.

@@ -1,8 +1,13 @@
 /***
- * Irc class : simple implementation of a chat using JAVANAISE
- * Contact: 
+ * JAVANAISE API
+ * Irc test class
+ * Contacts: 
+ *  nicolas.bouscarle@centraliens-lille.org
+ *  arnaud.panaiotis@e.ujf-grenoble.fr
  *
  * Authors: 
+ *  Bouscarle Nicolas
+ *  Panaiotis Arnaud
  */
 
 package irc;

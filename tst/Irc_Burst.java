@@ -1,13 +1,16 @@
 /***
- * Irc class : simple implementation of a chat using JAVANAISE
- * Contact: 
+ * JAVANAISE API
+ * Irc_Burst test class
+ * Contacts: 
+ *  nicolas.bouscarle@centraliens-lille.org
+ *  arnaud.panaiotis@e.ujf-grenoble.fr
  *
  * Authors: 
+ *  Bouscarle Nicolas
+ *  Panaiotis Arnaud
  */
 package tst;
 
-import java.awt.*;
-import java.awt.event.*;
 import java.io.*;
 
 import irc.Sentence;
@@ -70,9 +73,7 @@ import jvn.*;
                try {
                     Thread.sleep(10 * random.nextInt(10));
                     if (random.nextInt(5) == 0) {
-                        System.out.println("Asking for Write lock");
                         sentence.jvnLockWrite();
-                        System.out.println("Got Write lock");
                         ((Sentence)
                                 (sentence.jvnGetObjectState()))
                                 .write(WORD_LIST.get(
@@ -81,17 +82,13 @@ import jvn.*;
                                 ((Sentence)(sentence
                                 .jvnGetObjectState())).read());
                     } else {
-                        System.out.println("Asking for Read lock");
                         sentence.jvnLockRead();
-                        System.out.println("Got Read lock");
                         System.out.println("Readed : "+
                                 ((Sentence)(sentence
                                 .jvnGetObjectState())).read());
                     }
                     Thread.sleep(10 * random.nextInt(5));
-                    System.out.println("Freeing lock");
                     sentence.jvnUnLock();
-                    System.out.println("Lock freed");
                } catch (JvnException ex) {
                     System.out.println("Error while attemping to get a lock");
                }

@@ -56,6 +56,7 @@ public class JvnCoordImpl
                  LocateRegistry.createRegistry(2020);
                  JvnCoordImpl cs = new JvnCoordImpl();
                  Naming.rebind("//localhost:2020/JvnCoord/", cs);
+                 System.out.println("Coordinator Ready!");
              }
              catch(Exception e)
              {
@@ -91,7 +92,7 @@ public class JvnCoordImpl
     * @throws java.rmi.RemoteException,JvnException
     **/
     @Override
-    public void jvnRegisterObject(String jon, JvnObject jo, JvnRemoteServer js)
+    synchronized public void jvnRegisterObject(String jon, JvnObject jo, JvnRemoteServer js)
         throws java.rmi.RemoteException,jvn.JvnException{
         if (symbolicNames.containsKey(jon)) {
             throw new JvnException("This symbolic name is already taken");
